@@ -1,9 +1,6 @@
 <?php
 namespace Net\MJDawson\AccountSystem;
-
 use Exception;
-
-$tableName = '123';
 
 class Accounts{
     public function __construct($conn, $tableName){
