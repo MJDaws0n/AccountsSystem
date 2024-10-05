@@ -1,64 +1,125 @@
 <?php
-use Net\MJDawson\AccountSystem\User;
-use Net\MJDawson\AccountSystem\Accounts;
+namespace Net\MJDawson\AccountSystem;
+use Exception;
 
-if($_SERVER['REQUEST_METHOD'] === 'POST'){    
-    require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'AccountSystem' . DIRECTORY_SEPARATOR . 'main.php';
-    
-    $host = '';
-    $username = '';
-    $password = '';
-    $database = '';
-    
-    $additionalVals = [
-        'fname' => 'Max',
-        'lname' => 'Dawson',
-        'admin' => 1
-    ];
-    
-    // Create connection
-    $conn = new mysqli($host, $username, $password, $database);
-    
-    // Check connection
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+class Accounts{
+    public function __construct($conn, $tableName){
+        $tableExists = $conn->query("SHOW TABLES LIKE '$tableName'");
+
+        if ($tableExists->num_rows == 0) {
+            $this->createAccountsTable($conn, $tableName);
+        }
     }
-    
-    $accounts = new Accounts($conn, 'users');
-    $userAccount = new User($conn, 'users', $_POST['username'], $_POST['password']);
-    $user = $userAccount->get();
+    private function createAccountsTable($conn, $name) {
+        $sql = "CREATE TABLE $name (
+            id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            session VARCHAR(255) NOT NULL,
+            reset_token VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            additional_values TEXT NOT NULL DEFAULT '{}'
+        )";
 
-    if($user !== null){
-        echo "Hello ".htmlspecialchars($user['additional_values']['fname']).'!';
-    } else{
-        echo "Invalid username or password!";
+        if ($conn->query($sql) !== TRUE) {
+            throw new Exception("Error creating table: " . $conn->error);
+            exit();
+        }
     }
-    
-    // Close connection
-    $conn->close();
-} else{
-    ?>
+}
 
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Login Page</title>
-        </head>
-        <body>
-            <p>Login</p>
-            <form action="/" method="POST">
-                <label for="username">Username:</label><br>
-                <input type="text" id="username" name="username" required><br>
+class User{
+    private $user;
+    private $conn;
+    private $tableName;
 
-                <label for="password">Password:</label><br>
-                <input type="password" id="password" name="password" required><br>
+    public function __construct($conn, $tableName, $username = null, $password = null, $session = null, $id = null){
+        $this->conn = $conn;
+        if($username !== null && $password !== null){
+            $sql = "SELECT * FROM `$tableName` WHERE `username` = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                if (password_verify($password, $row['password'])) {
+                    $row['additional_values'] = json_decode($row['additional_values'], true);
+                    $this->user = $row;
+                }
+            }
+            $stmt->close();
+        }
+        if($session !== null){
+            $sql = "SELECT * FROM `$tableName` WHERE `session` = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("s", $session);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                $this->user = $row;
+            }
+            $stmt->close();
+        }
+        if($id !== null){
+            $sql = "SELECT * FROM `$tableName` WHERE `id` = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                $this->user = $row;
+            }
+            $stmt->close();
+        }
 
-                <input type="submit" value="Submit">
-            </form>
-        </body>
-        </html>
+        $this->tableName = $tableName;
+    }
+    public function get(){
+        return $this->user;
+    }
+    public function create($username, $password, $additionalValues = []){
+        $sql = "INSERT INTO `".$this->tableName."`(`username`, `password`, `session`, `reset_token`, `additional_values`)
+        VALUES (?, ?, ?, ?, ?)";
+        
+        $session = $this->createSession();
+        $reset_token = $this->createResetToken();
 
-    <?php
+        $stmt = $this->conn->prepare($sql);
+        $additionalValues = json_encode($additionalValues);
+        $password = $this->hashPassword($password);
+        $stmt->bind_param("sssss", $username, $password, $session, $reset_token, $additionalValues);
+
+        $stmt->execute();
+        if (!$stmt->execute()) {
+            throw new Exception("Error executing query: " . $stmt->error);
+        }
+        
+        // Check if it's created
+        if ($stmt->affected_rows == 1) {
+            $this->user = [
+                'username' => $username,
+                'password' => $password,
+                'session' => $session,
+                'reset_token' => $reset_token,
+                'additional_values' => json_decode($additionalValues, true)
+            ];
+        }
+
+        $stmt->close();
+    }
+    private function createSession(){
+        return bin2hex(random_bytes(16));
+    }
+    private function createResetToken(){
+        return bin2hex(bin2hex(random_bytes(32)));
+    }
+    private function hashPassword($password){
+        return password_hash($password, PASSWORD_DEFAULT);
+    }
 }
