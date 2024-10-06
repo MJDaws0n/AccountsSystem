@@ -95,7 +95,6 @@ class User{
         $password = $this->hashPassword($password);
         $stmt->bind_param("sssss", $username, $password, $session, $reset_token, $additionalValues);
 
-        $stmt->execute();
         if (!$stmt->execute()) {
             throw new Exception("Error executing query: " . $stmt->error);
         }
