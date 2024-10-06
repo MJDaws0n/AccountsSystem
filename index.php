@@ -60,6 +60,7 @@ class User{
             
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
+                $row['additional_values'] = json_decode($row['additional_values'], true);
                 $this->user = $row;
             }
             $stmt->close();
@@ -73,6 +74,7 @@ class User{
             
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
+                $row['additional_values'] = json_decode($row['additional_values'], true);
                 $this->user = $row;
             }
             $stmt->close();
