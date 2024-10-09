@@ -11,7 +11,7 @@ class Accounts{
         }
     }
     private function createAccountsTable($conn, $name) {
-        $sql = "CREATE TABLE users (
+        $sql = "CREATE TABLE $name (
             id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL,
             password VARCHAR(255) NOT NULL,
@@ -31,6 +31,7 @@ class Accounts{
 class User{
     private $user;
     private $conn;
+    private $tableName;
 
     public function __construct($conn, $tableName, $username = null, $password = null, $session = null, $id = null){
         $this->conn = $conn;
@@ -59,6 +60,7 @@ class User{
             
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
+                $row['additional_values'] = json_decode($row['additional_values'], true);
                 $this->user = $row;
             }
             $stmt->close();
@@ -72,16 +74,19 @@ class User{
             
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
+                $row['additional_values'] = json_decode($row['additional_values'], true);
                 $this->user = $row;
             }
             $stmt->close();
         }
+
+        $this->tableName = $tableName;
     }
     public function get(){
         return $this->user;
     }
     public function create($username, $password, $additionalValues = []){
-        $sql = "INSERT INTO `users`(`username`, `password`, `session`, `reset_token`, `additional_values`)
+        $sql = "INSERT INTO `".$this->tableName."`(`username`, `password`, `session`, `reset_token`, `additional_values`)
         VALUES (?, ?, ?, ?, ?)";
         
         $session = $this->createSession();
@@ -92,7 +97,6 @@ class User{
         $password = $this->hashPassword($password);
         $stmt->bind_param("sssss", $username, $password, $session, $reset_token, $additionalValues);
 
-        $stmt->execute();
         if (!$stmt->execute()) {
             throw new Exception("Error executing query: " . $stmt->error);
         }
