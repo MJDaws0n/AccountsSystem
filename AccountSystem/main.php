@@ -45,8 +45,14 @@ class User{
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
                 if (password_verify($password, $row['password'])) {
-                    $row['additional_values'] = json_decode($row['additional_values'], true);
-                    $this->user = $row;
+                    $newRow = json_decode($row['additional_values'], true);
+                    $newRow['id'] = $row['id'];
+                    $newRow['username'] = $row['username'];
+                    $newRow['password'] = $row['password'];
+                    $newRow['session'] = $row['session'];
+                    $newRow['reset_token'] = $row['reset_token'];
+                    $newRow['created_at'] = $row['created_at'];
+                    $this->user = $newRow;
                 }
             }
             $stmt->close();
@@ -60,8 +66,14 @@ class User{
             
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
-                $row['additional_values'] = json_decode($row['additional_values'], true);
-                $this->user = $row;
+                $newRow = json_decode($row['additional_values'], true);
+                $newRow['id'] = $row['id'];
+                $newRow['username'] = $row['username'];
+                $newRow['password'] = $row['password'];
+                $newRow['session'] = $row['session'];
+                $newRow['reset_token'] = $row['reset_token'];
+                $newRow['created_at'] = $row['created_at'];
+                $this->user = $newRow;
             }
             $stmt->close();
         }
@@ -74,8 +86,14 @@ class User{
             
             if ($result->num_rows > 0) {
                 $row = $result->fetch_assoc();
-                $row['additional_values'] = json_decode($row['additional_values'], true);
-                $this->user = $row;
+                $newRow = json_decode($row['additional_values'], true);
+                $newRow['id'] = $row['id'];
+                $newRow['username'] = $row['username'];
+                $newRow['password'] = $row['password'];
+                $newRow['session'] = $row['session'];
+                $newRow['reset_token'] = $row['reset_token'];
+                $newRow['created_at'] = $row['created_at'];
+                $this->user = $newRow;
             }
             $stmt->close();
         }
