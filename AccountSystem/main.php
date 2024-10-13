@@ -131,6 +131,7 @@ class User{
         }
 
         $stmt->close();
+        return $this->user;
     }
     private function createSession(){
         return bin2hex(random_bytes(16));
