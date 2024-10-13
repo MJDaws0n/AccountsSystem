@@ -103,22 +103,48 @@ class User{
     public function get(){
         return $this->user;
     }
-    public function create($username, $password, $additionalValues = []){
+    public function create($username, $password, $additionalValues = []) {
+        // Initialize count variable
+        $count = 0;
+    
+        // Check if username is already in use
+        $checkSql = "SELECT COUNT(*) FROM `".$this->tableName."` WHERE `username` = ?";
+        $checkStmt = $this->conn->prepare($checkSql);
+    
+        if (!$checkStmt) {
+            throw new Exception("Prepare failed: " . $this->conn->error);
+        }
+    
+        $checkStmt->bind_param("s", $username);
+        $checkStmt->execute();
+        $checkStmt->bind_result($count);
+        $checkStmt->fetch();
+        $checkStmt->close();
+    
+        if ($count > 0) {
+            return null;
+        }
+    
         $sql = "INSERT INTO `".$this->tableName."`(`username`, `password`, `session`, `reset_token`, `additional_values`)
-        VALUES (?, ?, ?, ?, ?)";
-        
+                VALUES (?, ?, ?, ?, ?)";
+    
         $session = $this->createSession();
         $reset_token = $this->createResetToken();
-
+    
         $stmt = $this->conn->prepare($sql);
+    
+        if (!$stmt) {
+            throw new Exception("Prepare failed: " . $this->conn->error);
+        }
+    
         $additionalValues = json_encode($additionalValues);
         $password = $this->hashPassword($password);
         $stmt->bind_param("sssss", $username, $password, $session, $reset_token, $additionalValues);
-
+    
         if (!$stmt->execute()) {
             throw new Exception("Error executing query: " . $stmt->error);
         }
-        
+    
         // Check if it's created
         if ($stmt->affected_rows == 1) {
             $this->user = [
@@ -129,10 +155,11 @@ class User{
                 'additional_values' => json_decode($additionalValues, true)
             ];
         }
-
+    
         $stmt->close();
         return $this->user;
     }
+    
     private function createSession(){
         return bin2hex(random_bytes(16));
     }
